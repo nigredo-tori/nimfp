@@ -1,9 +1,10 @@
 import ../../src/fp/list, ../../src/fp/option, unittest, sugar, boost/types
+from sequtils import toSeq
 
 suite "List ADT":
 
   test "Initialization and conversion":
-    let lst = [1, 2, 3, 4, 5].asList
+    let lst = toSeq(1..5).asList
 
     check: lst.head == 1
     check: lst.headOption == some(1)
@@ -16,7 +17,7 @@ suite "List ADT":
     check: 1.point(List) == [1].asList
 
   test "Fold operations":
-    let lst = lc[x|(x <- 1..4),int].asList
+    let lst = toSeq(1..4).asList
 
     check: lst.foldLeft(0, (x, y) => x + y) == 10
     check: lst.foldLeft(1, (x, y) => x * y) == 24
@@ -79,15 +80,15 @@ suite "List ADT":
     check: @[1.some, 2.none, 3.some].asList.sequenceU == Unit.none
 
   test "Drop operations":
-    let lst = lc[x|(x <- 1..100),int].asList
+    let lst = toSeq(1..100).asList
 
     check: lst.drop(99) == [100].asList
     check: lst.dropWhile((x: int) => x < 100) == [100].asList
 
   test "Misc functions":
-    let lst = lc[$x | (x <- 'a'..'z'), string].asList
+    let lst = toSeq('a'..'z').asList
     check: lst.dup == lst
-    check: lst.reverse == lc[$(('z'.int - x).char) | (x <- 0..('z'.int - 'a'.int)), string].asList
+    check: lst.reverse == toSeq('z'..'a').asList
     check: asList(2, 4, 6, 8).forAll((x: int) => x mod 2 == 0) == true
     check: asList(2, 4, 6, 9).forAll((x: int) => x mod 2 == 0) == false
     check: asList(1, 2, 3).zip(asList('a', 'b', 'c')) == asList((1, 'a'), (2, 'b'), (3, 'c'))
