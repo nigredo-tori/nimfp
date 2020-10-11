@@ -44,8 +44,8 @@ suite "Future":
       discard y2.run.get
 
   test "Future[void] support":
-    check unit[void]().map(_ => 1).run.get == 1
-    check unit[void]().flatMap((_: Unit) => unit(1)).run.get == 1
+    check unit[void]().map(proc (_: Unit): auto {.gcsafe.} = 1).run.get == 1
+    check unit[void]().flatMap(proc (_: Unit): auto {.gcsafe.} = unit(1)).run.get == 1
     let correctType = unit[void]().elemType is Unit
     check correctType
 
@@ -61,9 +61,9 @@ suite "Future":
 
     var res = 1
     var x4 = future(2)
-    x4.onComplete((v: Try[int]) => (res = v.get))
+    x4.onComplete(proc (v: Try[int]): void {.gcsafe.} = (res = v.get))
     discard x4.run
     check: res == 2
 
-    check: sleepAsync(200).map(_ => 1).timeout(100).run.get == int.none
-    check: sleepAsync(100).map(_ => 1).timeout(200).run.get == 1.some
+    check: sleepAsync(200).map(proc (_: auto): auto {.gcsafe.} = 1).timeout(100).run.get == int.none
+    check: sleepAsync(100).map(proc (_: auto): auto {.gcsafe.} = 1).timeout(200).run.get == 1.some

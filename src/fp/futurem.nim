@@ -29,9 +29,10 @@ proc value*[T: NonVoid](f: Future[T]): Option[Try[T]] =
   else:
     none(Try[T])
 
-proc map*[T: NonVoid,U](v: Future[T], f: T -> U): Future[U] =
+proc map*[T: NonVoid,U](v: Future[T], f: proc (t: T): U {.gcsafe.}): Future[U] =
   var res = newFuture[U]()
-  v.callback = () => (block:
+
+  v.callback = proc () {.gcsafe.} =
     let vv = v.value.get
     if vv.isFailure:
       res.fail(vv.getError)
@@ -41,10 +42,10 @@ proc map*[T: NonVoid,U](v: Future[T], f: T -> U): Future[U] =
         res.fail(fv.getError)
       else:
         res.complete(fv.get)
-  )
+
   return res
 
-proc map*[U](v: Future[void], f: Unit -> U): Future[U] =
+proc map*[U](v: Future[void], f: proc (_: Unit): U {.gcsafe.}): Future[U] =
   var res = newFuture[U]()
   v.callback = () => (block:
     if v.failed:
@@ -58,7 +59,7 @@ proc map*[U](v: Future[void], f: Unit -> U): Future[U] =
   )
   return res
 
-proc flatMap*[U](v: Future[void], f: Unit -> Future[U]): Future[U] =
+proc flatMap*[U](v: Future[void], f: proc (_: Unit): Future[U] {.gcsafe.}): Future[U] =
   var res = newFuture[U]()
   v.callback = () => (block:
     if v.failed:
@@ -78,7 +79,7 @@ proc flatMap*[U](v: Future[void], f: Unit -> Future[U]): Future[U] =
   )
   return res
 
-proc flatMap*[T: NonVoid,U](v: Future[T], f: T -> Future[U]): Future[U] =
+proc flatMap*[T: NonVoid,U](v: Future[T], f: proc (t: T): Future[U] {.gcsafe.}): Future[U] =
   var res = newFuture[U]()
   v.callback = () => (block:
     if v.failed:
@@ -112,8 +113,9 @@ proc unit*[T](v: T): Future[T] =
   else:
     result.complete(v)
 
-proc newFuture*[T: NonVoid](f: () -> T): Future[T] =
-  result = unit(()).map(_ => f())
+proc newFuture*[T: NonVoid](f: proc (): T {.gcsafe.}): Future[T] =
+  proc f0(_: Unit): T {.gcsafe.} = f()
+  result = unit(()).map(f0)
 
 template futureImpl(body: typed): untyped =
   newFuture do() -> auto:
@@ -149,10 +151,9 @@ proc flattenF*[T](f: Future[Try[T]]): Future[T] =
       res.complete(v.get)
     return res
 
-proc onComplete*[T](v: Future[T], f: Try[T] -> void) =
-  v.callback = () => (block:
+proc onComplete*[T](v: Future[T], f: proc (tt: Try[T]) {.gcsafe.}) =
+  v.callback = proc (): void {.gcsafe.} =
     f(v.value.get)
-  )
 
 proc timeout*[T](v: Future[T], timeout: int): Future[Option[T]] =
   let tm = v.withTimeout(timeout)
